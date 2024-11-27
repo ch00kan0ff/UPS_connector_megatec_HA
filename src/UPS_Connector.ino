@@ -1,9 +1,10 @@
 
 /*-----Подключение необходимых библиотек-----*/
 #include <ESP8266WiFi.h>                //для работы с сетью
-#include <GyverPortal.h>                //для работы страницы настроек, доступной из сети
+#include <GyverPortal.h>                //для работы страницы настроек, доступной из локальной сети или при подключении к самому устройству. https://github.com/GyverLibs/GyverPortal/tree/main
 #include <EEPROM.h>                     //для работы с памятью
-#include <ArduinoHA.h>
+#include <ArduinoHA.h>                  //Библиотека для отправки данных в HA. https://github.com/dawidchyrzynski/arduino-home-assistant
+#include <SoftwareSerial.h>             //Библиотека для обмена через софт сериал. Через аппаратный оно не особо хотело работать. https://github.com/plerup/espsoftwareserial
 extern "C" {
 #include "user_interface.h"             //для переименования устройства в списке роутера
 }
@@ -12,7 +13,7 @@ extern "C" {
 GyverPortal portal;                     //переменная портала
 WiFiClient espClient;                   //переменная wi-fi клиента, через которого в дальнейшем подключаемся к сети
 
-/*Переменные для обмена с HA*/
+//Переменные для обмена с HA
 HADevice device;
 HAMqtt mqtt(espClient, device, 20);     //20 - количество сенсоров. Взято с запасом, на всякий случай. Думаю, что можно уменьшить до реального количества сенсоров
 HASensorNumber sIPV("InputVoltage", HASensorNumber::PrecisionP1);
@@ -20,7 +21,7 @@ HASensorNumber sFV("FailVoltage", HASensorNumber::PrecisionP1);
 HASensorNumber sOPV("OutputVoltage", HASensorNumber::PrecisionP1);
 HASensorNumber sOPC("OutputCurrent");
 HASensorNumber sIPF("InputFrequency", HASensorNumber::PrecisionP1);
-HASensorNumber sBATV("BatteryVoltage", HASensorNumber::PrecisionP1);
+HASensorNumber sBATV("BatteryVoltage", HASensorNumber::PrecisionP2);
 HASensorNumber sTEMP("Tempetature", HASensorNumber::PrecisionP1);
 HABinarySensor sUF("UtilityFail");//b7
 HABinarySensor sLB("LowBattery");//b6
@@ -40,6 +41,8 @@ IPAddress apIP(SP_AP_IP);               //переменная для адрес
 IPAddress subnet(255, 255, 255, 0);     //подсеть
 IPAddress nullAddr(0,0,0,0);            //пустой адрес, для сброса настроек
 
+EspSoftwareSerial::UART mySerial;       //Объявляем порт
+
 String WIFI_AP_NAME;                    //наименование точки доступа для подключения к wi-fi
 String WIFI_PASSWORD;                   //пароль для подключения к точке доступа
 String MQTT_ADR;                        //адрес mqtt сервера
@@ -49,7 +52,6 @@ String MQTT_PAS;                        //пароль для  подключе�
 String WIFI_SOFTAP_PAS;                 //пароль для точки доступа, которая поднимается на ESP. Если не задан, то по умолчанию 1234567890
 int status = WL_IDLE_STATUS;            //статус соединения Wi-Fi
 unsigned long lastReconnectAttempt = 0; //время последней попытки подключения к mqtt
-int mqttReconnectsCount = 0;
 
 
 bool WiFiStatus;                        //Статус Wi-fi подключения к роутеру: 1-ОК, 0 не ОК
@@ -79,25 +81,29 @@ int b1;           //Включено завершение работы
 int b0;           //Сигнал включен
 
 //Дополнительные переменные
-int cDelay = 100;               //Период отправки сообщений. То что тут указано позже в коде меняется на 60000
+int cDelay = 100;               //Период отправки сообщений. То что тут указано позже в коде меняется на 10000. Учитывая, что команды отправляются по очереди F и Q1, то реальный интервал получения данных будет раз в 20 секунд.
 int cTimer = 0;                 //Переменная таймер для отправки сообщений
-int rDelay = 50000;             //Период ожидания ответа от ИБП после отправки команды
+int rDelay = 9000;              //Период ожидания ответа от ИБП после отправки команды
 int rTimer = 0;                 //Переменная таймер для ожидания ответа
 int notGetDataCounter = 0;      //Счётчик неполученных ответов
 bool isDataGetted = true;       //Флаг успешного приема данных
 bool isUPSUnavailable = false;  //Флаг недоступности ИБП
 String devGuid;                 //идентификатор устройства
 String HADiscoveryTopic;        //Топик для автоопределения в HA 
+bool isSendF = false;           //Маркер отправки команды F
+int cellCount = 0;              //Количество ячеек в батарее, для 12 вольтовой батареи это 6
+int batCount = 0;               //Количество батарей, подключенных последовательно!
 
 /*-----Функция разбора строки, полученной от ИБП-----*/
 void parseUPSResponse(String str){
-  str = str.substring(1);  //первым символом там скобка или решетка, отрезаем его
+  str = str.substring(1);  //первым символом там скобка, отрезаем его
   ipv = (str.substring(0,5)).toFloat();
   fv = (str.substring(6,11)).toFloat();
   opv = (str.substring(12,17)).toFloat();
   opc = (str.substring(18,21)).toInt();
   ipf = (str.substring(22,26)).toFloat();
   batv = (str.substring(27,31)).toFloat();
+  batv = batv * cellCount * batCount;
   temp = (str.substring(32,36)).toFloat();
   b7 = (str.substring(37,38)).toInt();
   b6 = (str.substring(38,39)).toInt();
@@ -109,7 +115,7 @@ void parseUPSResponse(String str){
   b0 = (str.substring(44,45)).toInt();
 }
 
-/*-----Конструктор страницы портала-----*/
+/*------Конструктор страницы портала-----*/
 void build(){
   GP.BUILD_BEGIN();
   GP.THEME(GP_DARK);
@@ -143,7 +149,7 @@ void build(){
   GP.NUMBER_F("pOPV", "", opv, 1, "25%", true);
   GP.BOX_END();
   GP.BOX_BEGIN();
-  GP.LABEL("Output current");
+  GP.LABEL("Output load");
   GP.NUMBER("pOPC", "", opc, "25%", true);
   GP.BOX_END();
   GP.BOX_BEGIN();
@@ -152,7 +158,7 @@ void build(){
   GP.BOX_END();
   GP.BOX_BEGIN();
   GP.LABEL("Battery voltage");
-  GP.NUMBER_F("pBATV", "", batv, 1, "25%", true);
+  GP.NUMBER_F("pBATV", "", batv, 2, "25%", true);
   GP.BOX_END();
   GP.BOX_BEGIN();
   GP.LABEL("Temperature");
@@ -208,7 +214,7 @@ void build(){
   GP.BOX_END();
   GP.BOX_BEGIN();
   GP.LABEL("AP pass");
-  GP.PASS("wfpas", "Pass", WIFI_PASSWORD,"60%");
+  GP.TEXT("wfpas", "Pass", WIFI_PASSWORD,"60%");
   GP.BOX_END();
   GP.BLOCK_END();
   
@@ -233,6 +239,19 @@ void build(){
   GP.LABEL("HA DT","hadtl");
   GP.HINT("hadtl", "HomeAssistant discovery topic");
   GP.TEXT("hadt", "homeassistant", HADiscoveryTopic,"60%");
+  GP.BOX_END();
+  GP.BLOCK_END();
+
+  GP.BLOCK_BEGIN(GP_THIN,"95%","Battery Settings");
+  GP.BOX_BEGIN();
+  GP.LABEL("Cels","ccl");
+  GP.HINT("ccl", "Cells count in one battery, usually 6 fo 12V battery");
+  GP.NUMBER("cel", "cells", cellCount,"60%");
+  GP.BOX_END();
+  GP.BOX_BEGIN();
+  GP.LABEL("Batteries","batcl");
+  GP.HINT("batcl", "Batteries count, connected in series");
+  GP.NUMBER("batc", "Batteries", batCount,"60%");
   GP.BOX_END();
   GP.BLOCK_END();
 
@@ -321,6 +340,8 @@ void action(){
       MQTT_PAS = portal.getString("pas");
       WIFI_SOFTAP_PAS = portal.getString("sappas");
       HADiscoveryTopic = portal.getString("hadt");
+      cellCount = portal.getInt("cel");
+      batCount = portal.getInt("batc");
       //запишем полученное в память
       int eepromOffset = 4;
       int newStr1AddrOffset = writeStringToEEPROM(eepromOffset, WIFI_AP_NAME);
@@ -331,7 +352,13 @@ void action(){
       int newStr6AddrOffset = writeStringToEEPROM(newStr5AddrOffset, MQTT_PAS);
       int newStr7AddrOffset = writeStringToEEPROM(newStr6AddrOffset, WIFI_SOFTAP_PAS);
       int newStr8AddrOffset = writeStringToEEPROM(newStr7AddrOffset, devGuid);
-      writeStringToEEPROM(newStr8AddrOffset, HADiscoveryTopic);
+      int newStr9AddrOffset = writeStringToEEPROM(newStr8AddrOffset, HADiscoveryTopic);
+      EEPROM.begin(512);
+      EEPROM.write(newStr9AddrOffset, cellCount);
+      EEPROM.end();
+      EEPROM.begin(512);
+      EEPROM.write(newStr9AddrOffset+5, batCount);
+      EEPROM.end(); 
       
       mqtt.disconnect();//отключаем mqtt, он в основном цикле включится уже с новыми параметрами
       mqtt.setDiscoveryPrefix(HADiscoveryTopic.c_str()); //обновляем топик для дискавери
@@ -447,9 +474,16 @@ void setup()
     int newStr6AddrOffset = readStringFromEEPROM(newStr5AddrOffset, &MQTT_PAS);
     int newStr7AddrOffset = readStringFromEEPROM(newStr6AddrOffset, &WIFI_SOFTAP_PAS);
     int newStr8AddrOffset = readStringFromEEPROM(newStr7AddrOffset, &devGuid);
-    readStringFromEEPROM(newStr8AddrOffset, &HADiscoveryTopic);
+    int newStr9AddrOffset = readStringFromEEPROM(newStr8AddrOffset, &HADiscoveryTopic);
     EEPROM.begin(512);
-    mode = EEPROM.read(2);            //считываем текущий режим работы сети
+    cellCount = EEPROM.read(newStr9AddrOffset);            //считываем количество ячеек
+    EEPROM.end();
+    EEPROM.begin(512);
+    mode = EEPROM.read(2);            //считываем количество батарей
+    EEPROM.end();
+    
+    EEPROM.begin(512);
+    batCount = EEPROM.read(newStr9AddrOffset+5);            //считываем текущий режим работы сети
     EEPROM.end();
   }
   else{                                //Если это первый запуск
@@ -474,7 +508,13 @@ void setup()
     int str6AddrOffset = writeStringToEEPROM(str5AddrOffset, "");
     int str7AddrOffset = writeStringToEEPROM(str6AddrOffset, "");
     int str8AddrOffset = writeStringToEEPROM(str7AddrOffset, devGuid);
-    writeStringToEEPROM(str8AddrOffset, HADiscoveryTopic);
+    int str9AddrOffset = writeStringToEEPROM(str8AddrOffset, HADiscoveryTopic);
+    EEPROM.begin(512);
+    EEPROM.write(str9AddrOffset, cellCount);
+    EEPROM.end();
+    EEPROM.begin(512);
+    EEPROM.write(str9AddrOffset+5, batCount);
+    EEPROM.end(); 
   }
   mqtt.setDiscoveryPrefix(HADiscoveryTopic.c_str()); //обновляем топик для дискавери
   byte devGuidBytes[17];
@@ -507,8 +547,8 @@ void setup()
   sOPV.setUnitOfMeasurement("V");
 
   sOPC.setIcon("mdi:alpha-a-box-outline");
-  sOPC.setName("Output current");
-  sOPC.setUnitOfMeasurement("A");
+  sOPC.setName("Output load");
+  sOPC.setUnitOfMeasurement("%");
 
   sIPF.setIcon("mdi:current-ac");
   sIPF.setName("Input Frequency");
@@ -550,7 +590,9 @@ void setup()
   sCF.setName("Connection fail");
   sCF.onCommand(onSwitchCF);
 
-  Serial.begin(2400); //Эта скорость обязательна для обмена по Megatec. Для отладки можно ставить любую
+
+  mySerial.begin(2400, EspSoftwareSerial::SWSERIAL_8N1, 5, 4); //запуск порта в соответствии со спецификацией: скорость 2400, 8 бит, без битов четности. 5 - rx, 4 - tx. Для вемоса это D1 и D2.
+  delay(200);
 }
 
 
@@ -599,8 +641,8 @@ void loop() {
 
   //Раз в период отправки команды и если порт чист (всё считано ранее) отправляем команду на получение данных. Команда не отправляется, если ИБП недоступен
   if (millis() - cTimer > cDelay && !isUPSUnavailable){
-    if (cDelay != 60000){ //это для первого прохода. Если не делать, то первая команда отправляется через минуту после старта контроллера, что не очень приятно
-      cDelay = 60000;
+    if (cDelay != 10000){ //это для первого прохода. Если не делать, то первая команда отправляется через минуту после старта контроллера, что не очень приятно
+      cDelay = 10000;
     }
     if (isDataGetted){
       isDataGetted = false;
@@ -618,8 +660,18 @@ void loop() {
       }
     }
     if (!isUPSUnavailable){
-      Serial.readString(); //очищаем ввод
-      Serial.write("F\r");  //Отправляем команду на ИБП для получения данных
+      mySerial.readString(); //очищаем ввод
+
+      
+
+      if(isSendF){
+        mySerial.write("Q1\r");  //Отправляем команду на ИБП для получения данных
+        isSendF = false;
+      }
+      else{
+        mySerial.write("F\r");  //Или дежурную команду (без нее не работает, но её результаты в принципе не нужны, так как всё есть в Q1)
+        isSendF = true;
+      }
       cTimer = millis();
       rTimer = millis();
     }
@@ -627,9 +679,11 @@ void loop() {
 
   //После отправки команды в ИБП пробуем получить ответ и разобрать его. Если ИБП недоступен, то считывание данных не производится
   if (millis() - rTimer < rDelay && !isUPSUnavailable){
-    if(Serial.available() > 0 && !isDataGetted && !isUPSUnavailable){ //Если данные получены от ИБП, то разбираем их на переменные
-      String str = Serial.readString();
-      parseUPSResponse(str);
+    if(mySerial.available() > 0 && !isDataGetted && !isUPSUnavailable){ //Если данные получены от ИБП, то разбираем их на переменные
+      String str = mySerial.readString();
+      if(!isSendF){
+        parseUPSResponse(str); //если отправляли F, то не разбираем их, а просто считываем буфер для очистки
+      }
       isDataGetted = true;
       
       /*Отправим полученные данные в HA*/
@@ -653,7 +707,7 @@ void loop() {
     }
   }
   if(isUPSUnavailable && millis() - UPSConnectCrash > 300000){ //если связи с ИБП нет, то пробуем раз в 5 минут её восстановить
-    notGetDataCounter = 9; //При такой установке проверка будет делаться только один раз, и если связь не восстановилась, то опять уйдёт в ошибку
+    notGetDataCounter = 0;
     isUPSUnavailable = false;
   }
 
