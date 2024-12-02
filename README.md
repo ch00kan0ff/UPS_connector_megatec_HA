@@ -67,7 +67,7 @@ ConnectionFail в HA сделан выключателем. И его можно
 
 Скриншоты портала ниже:
 ![PortalScreenshotData](files/PortalScreenshotData.png)
-![PortalScreenshotSettings](PortalScreenshotSettings.png)
+![PortalScreenshotSettings](files/PortalScreenshotSettings.png)
 
 ## Поддерживаемые ИБП
 По идее должны поддерживаться любые ИБП с протоколом Megatec и выходом RS232. Однако тестировалось только на [Штиль SW1000L](https://www.shtyl.ru/catalog/ibp/odnofaznye/nastennye/sw1000l-1000-va-900-vt/) с картой расширения [IC-RS232/Dry contacts](https://www.shtyl.ru/catalog/ibp/aksessuary/karty-monitoringa/ic-rs-232-dry-contacts/)
