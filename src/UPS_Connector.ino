@@ -19,7 +19,7 @@ HAMqtt mqtt(espClient, device, 20);     //20 - количество сенсор
 HASensorNumber sIPV("InputVoltage", HASensorNumber::PrecisionP1);
 HASensorNumber sFV("FailVoltage", HASensorNumber::PrecisionP1);
 HASensorNumber sOPV("OutputVoltage", HASensorNumber::PrecisionP1);
-HASensorNumber sOPC("OutputCurrent");
+HASensorNumber sOPC("Output load");
 HASensorNumber sIPF("InputFrequency", HASensorNumber::PrecisionP1);
 HASensorNumber sBATV("BatteryVoltage", HASensorNumber::PrecisionP2);
 HASensorNumber sTEMP("Tempetature", HASensorNumber::PrecisionP1);
@@ -519,7 +519,10 @@ void setup()
   mqtt.setDiscoveryPrefix(HADiscoveryTopic.c_str()); //обновляем топик для дискавери
   byte devGuidBytes[17];
   devGuid.getBytes(devGuidBytes, sizeof(devGuidBytes));   //Запихнуть строку нельзя, надо приводить к массиву байт. ХЗ, может строка это и есть массив байт, но лучше перестрахуюсь
-  device.setUniqueId(devGuidBytes,sizeof(devGuidBytes)); //Устанавливаем наименование устройства
+  device.setUniqueId(devGuidBytes,sizeof(devGuidBytes)); //Устанавливаем идентификатор устройства
+  device.setName("UPS Control");
+  device.setSoftwareVersion("1.0");
+  device.setManufacturer("ADP");
   device.enableExtendedUniqueIds(); //Делаем так, чтобы для сенсоров идентификаторы включали в себя ид устройства
   device.enableSharedAvailability(); //Для поддержания состояния устройства в брокере и HA
   device.enableLastWill();
