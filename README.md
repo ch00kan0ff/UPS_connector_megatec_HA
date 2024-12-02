@@ -66,7 +66,10 @@ ConnectionFail в HA сделан выключателем. И его можно
 - OTA обновления прошивки по воздуху. Доступно через отдельную страницу 192.168.1.1/ota_update, либо надо указать IP адрес от роутера вместо "192.168.1.1".
 
 Скриншоты портала ниже:
+
 ![PortalScreenshotData](files/PortalScreenshotData.png)
+
+
 ![PortalScreenshotSettings](files/PortalScreenshotSettings.png)
 
 ## Поддерживаемые ИБП
