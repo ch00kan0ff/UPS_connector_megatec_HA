@@ -1,0 +1,292 @@
+type: picture-elements
+image: /local/HAUPSCardBackground.png?v=5
+elements:
+  - type: state-label
+    entity: sensor.none_input_voltage_5
+    prefix: 'U: '
+    card_mod:
+      style: |
+        :host {
+          top: 25%;
+          left: 13%;
+          font-family: Rockwell;
+          font-size: 17px;
+          color: {% set state = states('sensor.none_input_voltage_5') %}
+                 {% if is_number(state) and state | float > 240 or is_number(state) and state | float < 220 and state | float > 10 %}
+                   yellow;
+                 {% elif is_number(state) and state | float < 10 %}
+                   red;
+                 {% endif %}
+        }
+  - type: state-label
+    entity: sensor.none_input_frequency_5
+    prefix: 'F: '
+    card_mod:
+      style: |
+        :host {
+          top: 35%;
+          left: 13%;
+          font-family: Rockwell;
+          font-size: 17px;
+          color: {% set state = states('sensor.none_input_frequency_5') %}
+                 {% if is_number(state) and state | float > 50.1 or is_number(state) and state | float < 40.9 %}
+                   yellow;
+                 {% elif is_number(state) and state | float == 0 %}
+                   red;
+                 {% endif %}
+        }
+  - type: state-label
+    entity: sensor.none_output_voltage_5
+    prefix: 'U: '
+    card_mod:
+      style: |
+        :host {
+          top: 25%;
+          left: 87%;
+          font-family: Rockwell;
+          font-size: 17px;
+          color: {% set state = states('sensor.none_output_voltage_5') %}
+                 {% if is_number(state) and state | float > 221 or is_number(state) and state | float < 219 %}
+                   yellow;
+                 {% elif is_number(state) and state | float == 0 %}
+                   red;
+                 {% endif %}
+        }
+  - type: state-label
+    entity: sensor.none_output_current_rate
+    prefix: 'I: '
+    card_mod:
+      style: |
+        :host {
+          top: 35%;
+          left: 87%;
+          font-family: Rockwell;
+          font-size: 17px;
+          color: {% set state = states('sensor.none_output_current_rate') %}
+                 {% if is_number(state) and state | float > 70 %}
+                   yellow;
+                 {% elif is_number(state) and state | float > 90 %}
+                   red;
+                 {% endif %}
+        }
+  - type: state-label
+    entity: sensor.none_ups_temperature_5
+    card_mod:
+      style: |
+        :host {
+          top: 52%;
+          left: 38%;
+          font-family: Rockwell;
+          font-size: 16px;
+          color: {% set state = states('sensor.none_ups_temperature_5') %}
+                 {% if is_number(state) and state | float > 40 %}
+                   yellow;
+                 {% elif is_number(state) and state | float > 60 %}
+                   red;
+                 {% else %}
+                   rgba(150,250,150,0.8);
+                 {% endif %}
+        }
+  - type: state-label
+    entity: sensor.none_battery_voltage_5
+    prefix: 'U: '
+    card_mod:
+      style: |
+        :host {
+          top: 85%;
+          left: 29%;
+          font-family: Rockwell;
+          font-size: 16px;
+          color: {% set state = states('sensor.none_battery_voltage_5') %}
+                 {% if is_number(state) and state | float < 35 %}
+                   red;
+                 {% else %}
+                   black;
+                 {% endif %}
+        }
+  - type: custom:button-card
+    label: LOW BATTERY
+    show_label: true
+    entity: binary_sensor.none_shutdown_active_5
+    show_name: false
+    style:
+      top: 15%
+      left: 53%
+    styles:
+      card:
+        - background-color: rgba(0,0,0,0)
+        - border: 0px
+      label:
+        - font-family: Rockwell;
+        - font-size: 17px;
+        - color: rgba(150,150,150,0.8)
+    state:
+      - value: 'on'
+        styles:
+          label:
+            - color: rgba(250,100,100,1)
+  - type: custom:button-card
+    label: General Fail
+    show_label: true
+    entity: binary_sensor.none_general_fail_5
+    show_name: false
+    style:
+      top: 22%
+      left: 54.5%
+    styles:
+      card:
+        - background-color: rgba(0,0,0,0)
+        - border: 0px
+      label:
+        - font-family: Rockwell;
+        - font-size: 17px;
+        - color: rgba(150,150,150,0.8)
+    state:
+      - value: 'on'
+        styles:
+          label:
+            - color: rgba(250,100,100,1)
+  - type: custom:button-card
+    label: Utility Fail
+    show_label: true
+    entity: binary_sensor.none_utility_fail_5
+    show_name: false
+    style:
+      top: 29%
+      left: 56.5%
+    styles:
+      card:
+        - background-color: rgba(0,0,0,0)
+        - border: 0px
+      label:
+        - font-family: Rockwell;
+        - font-size: 17px;
+        - color: rgba(150,150,150,0.8)
+    state:
+      - value: 'on'
+        styles:
+          label:
+            - color: rgba(250,100,100,1)
+  - type: custom:button-card
+    label: Bypass
+    show_label: true
+    entity: binary_sensor.none_bypass_5
+    show_name: false
+    style:
+      top: 36%
+      left: 59%
+    styles:
+      card:
+        - background-color: rgba(0,0,0,0)
+        - border: 0px
+      label:
+        - font-family: Rockwell;
+        - font-size: 17px;
+        - color: rgba(150,150,150,0.8)
+    state:
+      - value: 'on'
+        styles:
+          label:
+            - color: rgba(250,100,100,1)
+  - type: custom:button-card
+    label: Shutdown
+    show_label: true
+    entity: binary_sensor.none_shutdown_active_5
+    show_name: false
+    style:
+      top: 43%
+      left: 57%
+    styles:
+      card:
+        - background-color: rgba(0,0,0,0)
+        - border: 0px
+      label:
+        - font-family: Rockwell;
+        - font-size: 17px;
+        - color: rgba(150,150,150,0.8)
+    state:
+      - value: 'on'
+        styles:
+          label:
+            - color: rgba(250,100,100,1)
+  - type: custom:button-card
+    label: T
+    show_label: true
+    entity: binary_sensor.none_shutdown_active_5
+    show_name: false
+    style:
+      top: 52%
+      left: 51%
+    styles:
+      card:
+        - background-color: rgba(0,0,0,0)
+        - border: 0px
+      label:
+        - font-family: Rockwell;
+        - font-size: 18px;
+        - color: rgba(150,150,150,0.8)
+    state:
+      - value: 'on'
+        styles:
+          label:
+            - color: rgba(215,217,24,0.8)
+  - type: custom:button-card
+    entity: binary_sensor.none_beeper_5
+    icon: mdi:volume-high
+    show_label: false
+    show_name: false
+    style:
+      top: 52%
+      left: 63%
+    styles:
+      card:
+        - background-color: rgba(0,0,0,0)
+        - border: 0px
+        - width: 50px
+      icon:
+        - color: rgba(0,0,0,0)
+      state:
+        - value: 'on'
+          styles:
+            icon:
+              - color: rgba(250,100,100,1)
+  - type: custom:button-card
+    entity: binary_sensor.none_beeper_5
+    icon: mdi:volume-off
+    show_label: false
+    show_name: false
+    style:
+      top: 52%
+      left: 63%
+    styles:
+      card:
+        - background-color: rgba(0,0,0,0)
+        - border: 0px
+        - width: 50px
+      icon:
+        - color: rgba(150,250,150,0.8);
+      state:
+        - value: 'on'
+          styles:
+            icon:
+              - color: rgba(0,0,0,0)
+  - type: custom:button-card
+    entity: switch.none_connection_fail_5
+    icon: mdi:alert-circle
+    show_label: false
+    show_name: false
+    style:
+      top: 86%
+      left: 69.5%
+    styles:
+      card:
+        - background-color: rgba(0,0,0,0)
+        - border: 0px
+        - width: 90px
+      icon:
+        - color: rgba(150,150,150,0.8)
+      state:
+        - value: 'on'
+          styles:
+            icon:
+              - color: rgba(250,100,100,1)
