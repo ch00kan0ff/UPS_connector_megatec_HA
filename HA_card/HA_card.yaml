@@ -217,7 +217,7 @@ elements:
   - type: custom:button-card
     label: T
     show_label: true
-    entity: binary_sensor.none_shutdown_active_5
+    entity: binary_sensor.none_test_in_progress_5
     show_name: false
     show_icon: false
     style:
